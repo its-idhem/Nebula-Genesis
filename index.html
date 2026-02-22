@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula Genesis — N-Body Gravity Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap');
+        :root {
+            --bg:#050209; --purple-deep:#12082a; --purple-mid:#2d1b69;
+            --purple-br:#7c3aed; --purple-glow:#a855f7; --purple-lt:#d8b4fe;
+            --purple-acc:#e879f9; --txt-pri:#ede9fe; --txt-sec:#a78bfa; --txt-mut:#6d28d9;
+        }
+        *{box-sizing:border-box;}
+        body{margin:0;overflow:hidden;background:var(--bg);color:var(--txt-pri);font-family:'Rajdhani',sans-serif;user-select:none;}
+        canvas{display:block;position:absolute;top:0;left:0;z-index:1;}
+        .glass{
+            background:rgba(18,8,42,.62);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+            border:1px solid rgba(168,85,247,.22);
+            box-shadow:0 20px 40px -10px rgba(0,0,0,.7),inset 0 1px 0 rgba(168,85,247,.1);
+        }
+        .ui-layer{position:relative;z-index:10;pointer-events:none;height:100vh;width:100vw;}
+        .hit{pointer-events:auto;}
+        @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+        @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+        .toast{animation:slideIn .4s cubic-bezier(.16,1,.3,1) forwards;}
+        .toast.out{animation:fadeOut .4s ease forwards;}
+        .pdot{animation:pulse 2s ease-in-out infinite;}
+        input[type=range]{-webkit-appearance:none;background:transparent;}
+        input[type=range]::-webkit-slider-thumb{
+            -webkit-appearance:none;height:14px;width:14px;border-radius:50%;
+            background:var(--purple-glow);cursor:pointer;margin-top:-5px;
+            box-shadow:0 0 10px rgba(168,85,247,.7);
+        }
+        input[type=range]::-webkit-slider-runnable-track{
+            width:100%;height:4px;cursor:pointer;
+            background:rgba(109,40,217,.4);border-radius:2px;
+        }
+        .btn{
+            background:rgba(109,40,217,.25);border:1px solid rgba(168,85,247,.4);
+            color:var(--purple-lt);transition:all .2s;
+            font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.05em;cursor:pointer;
+        }
+        .btn:hover{background:rgba(124,58,237,.5);border-color:var(--purple-glow);color:#fff;}
+        .btn.on{background:rgba(168,85,247,.35);border-color:var(--purple-acc);color:#fff;box-shadow:0 0 12px rgba(168,85,247,.4);}
+        .btn.danger{border-color:rgba(239,68,68,.5);color:#fca5a5;}
+        .btn.danger:hover{background:rgba(220,38,38,.3);border-color:#ef4444;color:#fff;}
+        .tglow{text-shadow:0 0 20px rgba(168,85,247,.9),0 0 40px rgba(168,85,247,.4);}
+        .lc{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+        /* Top-right fixed column: legend then toasts */
+        #tr-col{
+            position:fixed;top:1.25rem;right:1.25rem;
+            display:flex;flex-direction:column;align-items:flex-end;gap:.65rem;
+            z-index:20;pointer-events:none;
+        }
+        #legend-panel{pointer-events:auto;width:220px;}
+        #toast-container{display:flex;flex-direction:column;gap:.5rem;align-items:flex-end;pointer-events:none;width:220px;}
+        #splash{font-family:'Rajdhani',sans-serif;}
+        .chevron-open{transform:rotate(0deg);transition:transform .2s;}
+        .chevron-closed{transform:rotate(-90deg);transition:transform .2s;}
+    </style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<!-- TOP-RIGHT COLUMN: Legend + Toasts -->
+<div id="tr-col">
+    <div id="legend-panel" class="glass rounded-2xl overflow-hidden">
+        <button id="btn-legend" class="w-full flex items-center justify-between px-4 py-2.5 hit" style="cursor:pointer;">
+            <span class="text-xs font-bold uppercase tracking-widest" style="color:var(--txt-mut);">Stellar Classes</span>
+            <svg id="legend-chev" class="w-3.5 h-3.5 chevron-open" style="color:var(--purple-glow);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div id="legend-body" class="px-4 pb-3 flex flex-col gap-1.5 text-xs font-mono" style="color:var(--txt-sec);">
+            <div class="w-full mb-0.5 text-xs uppercase tracking-widest" style="color:var(--txt-mut);font-size:9px;">— Stellar (needs mass accretion) —</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#1a8fff;box-shadow:0 0 6px #1a8fff;"></span>Hypergiant (&gt;80k)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#6ab4ff;box-shadow:0 0 5px #6ab4ff;"></span>Blue Giant / O (&gt;40k)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#b0d8ff;box-shadow:0 0 4px #b0d8ff;"></span>B-type Blue (&gt;12k)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#fff4ea;box-shadow:0 0 4px #aaa;"></span>A-type White (&gt;5k)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#fff2c0;box-shadow:0 0 4px #ffe87c;"></span>F-type Yellow-White (&gt;2.5k)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#ffe87c;box-shadow:0 0 5px #ffe87c;"></span>G-type / Sun-like (&gt;1.2k)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#ffa040;box-shadow:0 0 5px #ffa040;"></span>K-type Orange (&gt;500)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#ff4422;box-shadow:0 0 5px #ff4422;"></span>M-type Red Dwarf (&gt;180)</div>
+            <div class="w-full my-0.5" style="border-top:1px solid rgba(168,85,247,.15);"></div>
+            <div class="flex items-center gap-2" style="font-size:9px;color:var(--txt-mut);">— Sub-stellar / Planetary —</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#d4b896;"></span>Gas Giant / Jovian (&gt;320)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#4a7fa5;"></span>Ice Giant / Neptunian (&gt;95)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#8b3d2a;"></span>Brown Dwarf (&gt;60)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#7a6850;"></span>Rocky Planet (&gt;20)</div>
+            <div class="flex items-center gap-2"><span class="lc" style="background:#4a4a5a;"></span>Debris / Asteroid</div>
+        </div>
+    </div>
+    <div id="toast-container"></div>
+</div>
+
+<!-- MAIN UI LAYER -->
+<div class="ui-layer flex flex-col justify-between p-5">
+
+    <!-- TOP LEFT: Status -->
+    <div class="flex justify-start">
+        <div class="glass hit rounded-2xl p-5 w-80 flex flex-col gap-2.5">
+            <div class="flex items-center justify-between">
+                <h1 class="text-lg font-bold tracking-widest tglow" style="color:var(--purple-lt);">NEBULA GENESIS</h1>
+                <span id="ui-bodies" class="text-xs font-mono" style="color:var(--txt-mut);">0 bodies</span>
+            </div>
+            <div class="flex justify-between text-xs uppercase tracking-wider" style="color:var(--txt-sec);">
+                <span>System Age</span>
+                <span id="ui-age" class="font-mono" style="color:var(--purple-lt);">0.00 Gy</span>
+            </div>
+            <div class="h-1.5 w-full rounded-full overflow-hidden" style="background:rgba(109,40,217,.3);border:1px solid rgba(168,85,247,.2);">
+                <div id="ui-prog" class="h-full w-0 transition-all duration-300" style="background:linear-gradient(90deg,#6d28d9,#a855f7,#e879f9);"></div>
+            </div>
+            <div class="flex justify-between text-xs font-mono" style="color:var(--txt-mut);">
+                <span>0 Gy — Nebula</span><span>12 Gy — Stable</span>
+            </div>
+            <div class="flex items-center gap-2 text-sm mt-1" style="color:var(--txt-pri);">
+                <div class="w-2 h-2 rounded-full pdot" style="background:var(--purple-glow);"></div>
+                <span id="ui-phase">Awaiting Initialisation</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIDDLE LEFT: Inspector -->
+    <div class="flex items-center">
+        <div id="inspector" class="glass hit rounded-2xl p-5 w-80 flex-col gap-4" style="display:none;">
+            <div class="flex items-center gap-3 pb-3" style="border-bottom:1px solid rgba(168,85,247,.2);">
+                <div id="insp-dot" class="w-4 h-4 rounded-full flex-shrink-0"></div>
+                <h2 id="insp-name" class="font-bold text-base tracking-wide truncate">—</h2>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div><span class="text-xs uppercase block" style="color:var(--txt-sec);">Class</span><span id="insp-class" class="font-mono">—</span></div>
+                <div><span class="text-xs uppercase block" style="color:var(--txt-sec);">Mass (sim u)</span><span id="insp-mass" class="font-mono" style="color:#f0abfc;">—</span></div>
+                <div><span class="text-xs uppercase block" style="color:var(--txt-sec);">Radius</span><span id="insp-rad" class="font-mono">—</span></div>
+                <div><span class="text-xs uppercase block" style="color:var(--txt-sec);">Speed</span><span id="insp-vel" class="font-mono">—</span></div>
+                <div><span class="text-xs uppercase block" style="color:var(--txt-sec);">Temperature</span><span id="insp-temp" class="font-mono" style="color:#fbbf24;">—</span></div>
+                <div><span class="text-xs uppercase block" style="color:var(--txt-sec);">Luminosity</span><span id="insp-lum" class="font-mono" style="color:#fde68a;">—</span></div>
+            </div>
+            <button id="btn-desel" class="btn mt-1 text-xs py-1.5 rounded-lg w-full">Deselect Target</button>
+        </div>
+    </div>
+
+    <!-- BOTTOM: Controls -->
+    <div class="flex justify-center">
+        <div class="glass hit rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap justify-center">
+
+            <button id="btn-pp" class="btn flex items-center gap-2 px-4 py-2 rounded-lg">
+                <svg id="icon-pause" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                <svg id="icon-play" class="w-4 h-4" style="display:none;" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <span id="txt-pp" class="font-bold text-sm">PAUSE</span>
+            </button>
+
+            <div class="w-px h-7" style="background:rgba(168,85,247,.3);"></div>
+
+            <div class="flex items-center gap-2">
+                <span class="text-xs uppercase tracking-widest" style="color:var(--txt-sec);">Time</span>
+                <input type="range" id="time-sl" min="0.1" max="8" step="0.1" value="1" class="w-32">
+                <span id="ui-dil" class="text-xs font-mono w-9 text-right" style="color:var(--purple-lt);">1.0×</span>
+            </div>
+
+            <div class="w-px h-7" style="background:rgba(168,85,247,.3);"></div>
+
+            <button id="btn-grid" class="btn on flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z"/></svg>GRID
+            </button>
+
+            <button id="btn-orb" class="btn on flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-35 12 12)"/></svg>ORBITS
+            </button>
+
+            <button id="btn-star" class="btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>CENTRE ★
+            </button>
+
+            <div class="w-px h-7" style="background:rgba(168,85,247,.3);"></div>
+
+            <button id="btn-menu" class="btn danger flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>MENU
+            </button>
+
+        </div>
+    </div>
+</div>
+
+<!-- SPLASH / MENU -->
+<div id="splash" class="fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(5,2,9,.94);backdrop-filter:blur(24px);">
+    <div class="glass rounded-3xl p-10 max-w-2xl w-full text-center" style="border-color:rgba(168,85,247,.3);box-shadow:0 0 80px rgba(168,85,247,.15);">
+        <h1 class="text-5xl font-bold tracking-widest tglow mb-1" style="color:var(--purple-lt);">NEBULA GENESIS</h1>
+        <p class="text-xs font-mono mb-2" style="color:var(--purple-glow);">PHYSICS-BASED N-BODY GRAVITY — BARNES-HUT O(N LOG N)</p>
+        <p class="mb-8 text-sm leading-relaxed" style="color:var(--txt-sec);">
+            Witness a solar system emerge from a molecular cloud. Realistic Harvard spectral colours,
+            spacetime curvature grid, and leapfrog integration. Stars only form through accretion —
+            no stellar objects appear at initialisation.
+        </p>
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <button onclick="startGame(600)" class="btn p-4 rounded-xl text-left">
+                <div class="font-bold text-base" style="color:var(--txt-pri);">Small</div>
+                <div class="text-xs mt-1" style="color:var(--txt-sec);">600 Particles<br>Mobile / Low-end</div>
+            </button>
+            <button onclick="startGame(1200)" class="btn on p-4 rounded-xl text-left relative overflow-hidden">
+                <div class="absolute top-0 inset-x-0 h-0.5" style="background:var(--purple-glow);"></div>
+                <div class="font-bold text-base" style="color:var(--purple-lt);">Standard</div>
+                <div class="text-xs mt-1" style="color:var(--txt-sec);">1200 Particles<br>Desktop</div>
+            </button>
+            <button onclick="startGame(2400)" class="btn p-4 rounded-xl text-left">
+                <div class="font-bold text-base" style="color:var(--txt-pri);">Gargantuan</div>
+                <div class="text-xs mt-1" style="color:var(--txt-sec);">2400 Particles<br>High-end</div>
+            </button>
+        </div>
+        <div class="text-xs font-mono text-left p-3 rounded-xl grid grid-cols-2 gap-1" style="background:rgba(109,40,217,.12);border:1px solid rgba(168,85,247,.15);color:var(--txt-sec);">
+            <span>Scroll</span><span style="color:var(--purple-lt);">→ Zoom</span>
+            <span>Drag</span><span style="color:var(--purple-lt);">→ Pan</span>
+            <span>Click body</span><span style="color:var(--purple-lt);">→ Inspect</span>
+            <span>MENU button</span><span style="color:var(--purple-lt);">→ Return here</span>
+        </div>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d', { alpha: false });
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let bodies=[], bodyId=0;
+let isRunning=false, isPaused=false;
+let timeDilation=1.0, systemAge=0.0, frameCount=0;
+
+const G=0.08, SOFTENING=200, THETA=0.6, DT_BASE=1.0, GY_FRAME=0.001;
+
+let phases={p2:false,p3:false,p4:false,p5:false,end:false};
+let panX=0,panY=0,tPanX=0,tPanY=0,zoom=1,tZoom=1;
+let isDragging=false,dsx=0,dsy=0;
+let selectedBody=null;
+let showGrid=true,showOrbits=true,centreOnStar=false,legendOpen=true;
+let stars=[];
+
+// ── Stellar Classification ─────────────────────────────────────────────────────
+// IMPORTANT: the if/else chain must go highest-to-lowest for each category,
+// with sub-stellar planetary bodies also ordered highest-to-lowest (Gas Giant
+// FIRST, then Ice Giant, then Brown Dwarf) so they are actually reachable.
+//
+// Initial particles spawn at mass 0.5–36 → all classified as Debris initially.
+// Bodies only gain stellar/planetary classification after sufficient merging.
+//
+function classify(mass) {
+    // ── Stellar sequence (requires nuclear fusion threshold — high cumulative mass) ──
+    if      (mass >= 80000) return {type:'Hypergiant',   color:'#1a8fff',glow:'#60b4ff',temp:'~50 000 K',  lum:'~10⁶ L☉'};
+    else if (mass >= 40000) return {type:'Blue Giant',   color:'#6ab4ff',glow:'#a0d0ff',temp:'~30 000 K',  lum:'~10⁵ L☉'};
+    else if (mass >= 12000) return {type:'B-type Star',  color:'#b0d8ff',glow:'#cce8ff',temp:'~20 000 K',  lum:'~10³ L☉'};
+    else if (mass >= 5000)  return {type:'A-type Star',  color:'#fff4ea',glow:'#ffffff', temp:'~9 000 K',   lum:'~50 L☉' };
+    else if (mass >= 2500)  return {type:'F-type Star',  color:'#fff2c0',glow:'#fffadc',temp:'~7 000 K',   lum:'~5 L☉'  };
+    else if (mass >= 1200)  return {type:'G-type / Sun', color:'#ffe87c',glow:'#fff5a0',temp:'~5 800 K',   lum:'~1 L☉'  };
+    else if (mass >= 500)   return {type:'K-type Star',  color:'#ffa040',glow:'#ffb870',temp:'~4 500 K',   lum:'~0.2 L☉'};
+    else if (mass >= 180)   return {type:'M-type Star',  color:'#ff4422',glow:'#ff7755',temp:'~3 000 K',   lum:'~0.04 L☉'};
+    // ── Sub-stellar / planetary: ordered Gas > Ice > Brown > Rocky (highest first!) ──
+    else if (mass >= 320)   return {type:'Gas Giant',    color:'#d4b896',glow:'#e8d0a8',temp:'~160 K',     lum:'N/A'    };
+    else if (mass >= 95)    return {type:'Ice Giant',    color:'#4a7fa5',glow:'#6098b8',temp:'~60 K',      lum:'N/A'    };
+    else if (mass >= 60)    return {type:'Brown Dwarf',  color:'#8b3d2a',glow:'#a05030',temp:'<2 500 K',   lum:'<0.001 L☉'};
+    else if (mass >= 20)    return {type:'Rocky Planet', color:'#7a6850',glow:'#968268',temp:'N/A',        lum:'N/A'    };
+    else                    return {type:'Debris',       color:'#4a4a5a',glow:'#5a5a6a',temp:'N/A',        lum:'N/A'    };
+}
+
+// ── Body ────────────────────────────────────────────────────────────────────────
+class Body {
+    constructor(x,y,vx,vy,mass) {
+        this.id=++bodyId; this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+        this.mass=mass; this.ax=0; this.ay=0; this.dead=false; this.path=[];
+        this.update();
+    }
+    update() {
+        this.radius=Math.cbrt(this.mass)*1.9;
+        const c=classify(this.mass);
+        this.classType=c.type; this.color=c.color;
+        this.glowColor=c.glow; this.temp=c.temp; this.lum=c.lum;
+    }
+    recordPath() {
+        if (this.mass<80) return;
+        this.path.push({x:this.x,y:this.y});
+        if (this.path.length>200) this.path.shift();
+    }
+}
+
+// ── Barnes-Hut Quad-Tree ────────────────────────────────────────────────────────
+class QNode {
+    constructor(x,y,w,h){
+        this.x=x;this.y=y;this.w=w;this.h=h;
+        this.cx=0;this.cy=0;this.mass=0;
+        this.body=null;this.nw=this.ne=this.sw=this.se=null;
+    }
+    insert(b){
+        if(this.mass===0){this.body=b;this.cx=b.x;this.cy=b.y;this.mass=b.mass;return;}
+        const tm=this.mass+b.mass;
+        this.cx=(this.cx*this.mass+b.x*b.mass)/tm;
+        this.cy=(this.cy*this.mass+b.y*b.mass)/tm;
+        this.mass=tm;
+        if(this.body!==null){this._sub();this._child(this.body);this.body=null;}
+        this._child(b);
+    }
+    _sub(){
+        const hw=this.w/2,hh=this.h/2;
+        this.nw=new QNode(this.x,   this.y,   hw,hh);
+        this.ne=new QNode(this.x+hw,this.y,   hw,hh);
+        this.sw=new QNode(this.x,   this.y+hh,hw,hh);
+        this.se=new QNode(this.x+hw,this.y+hh,hw,hh);
+    }
+    _child(b){
+        const mx=this.x+this.w/2,my=this.y+this.h/2;
+        if(b.x<mx){if(b.y<my)this.nw.insert(b);else this.sw.insert(b);}
+        else       {if(b.y<my)this.ne.insert(b);else this.se.insert(b);}
+    }
+    accel(b){
+        if(this.mass===0)return;
+        const dx=this.cx-b.x,dy=this.cy-b.y,d2=dx*dx+dy*dy+SOFTENING;
+        if(this.body!==null||(this.w*this.w/d2)<THETA*THETA){
+            if(this.body===b)return;
+            const d=Math.sqrt(d2),f=G*this.mass/d2;
+            b.ax+=f*dx/d;b.ay+=f*dy/d;return;
+        }
+        if(this.nw)this.nw.accel(b);if(this.ne)this.ne.accel(b);
+        if(this.sw)this.sw.accel(b);if(this.se)this.se.accel(b);
+    }
+}
+function buildTree(){
+    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    for(let b of bodies){if(b.x<x0)x0=b.x;if(b.x>x1)x1=b.x;if(b.y<y0)y0=b.y;if(b.y>y1)y1=b.y;}
+    const p=600,w=Math.max(x1-x0,1)+p*2,h=Math.max(y1-y0,1)+p*2;
+    const root=new QNode(x0-p,y0-p,w,h);
+    for(let b of bodies)root.insert(b);
+    return root;
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────────
+function showSplash(){
+    const s=document.getElementById('splash');
+    s.style.transition='opacity .4s';s.style.opacity='1';s.style.pointerEvents='auto';
+}
+function hideSplash(){
+    const s=document.getElementById('splash');
+    s.style.transition='opacity .4s';s.style.opacity='0';
+    setTimeout(()=>{s.style.pointerEvents='none';},400);
+}
+
+function startGame(n){
+    hideSplash();
+    resizeCanvas();
+    if(!isRunning){
+        window.addEventListener('resize',()=>{resizeCanvas();generateStars();});
+        generateStars();
+        isRunning=true;
+        requestAnimationFrame(renderLoop);
+        setInterval(physicsTick,1000/60);
+    } else {
+        generateStars();
+    }
+    panX=tPanX=canvas.width/2;
+    panY=tPanY=canvas.height/2;
+    tZoom=zoom=n>1800?0.35:n>900?0.5:0.7;
+    resetSim(n);
+}
+
+function resetSim(n){
+    bodies=[];bodyId=0;systemAge=0;frameCount=0;
+    phases={p2:false,p3:false,p4:false,p5:false,end:false};
+    selectedBody=null;centreOnStar=false;
+    document.getElementById('btn-star').classList.remove('on');
+    setPaused(false);
+    document.getElementById('inspector').style.display='none';
+
+    // Molecular cloud: power-law mass distribution, Keplerian velocities
+    const maxR=4500,centralM=n*6;
+    for(let i=0;i<n;i++){
+        const r=Math.random()*maxR+120;
+        const th=Math.random()*Math.PI*2;
+        const zOff=(Math.random()-.5)*r*0.04;
+        const x=Math.cos(th)*r,y=Math.sin(th)*r+zOff;
+        // 92% dust (0.5–6 u), 8% clumps (6–36 u) — none reach stellar thresholds
+        const u=Math.random();
+        const mass=u<0.92?(Math.random()*5.5+0.5):(Math.random()*30+6);
+        const vCirc=Math.sqrt(G*centralM/r)*(0.88+Math.random()*.1);
+        const vRand=vCirc*.06*(Math.random()-.5);
+        const vx=-Math.sin(th)*vCirc+Math.cos(th)*vRand;
+        const vy= Math.cos(th)*vCirc+Math.sin(th)*vRand;
+        bodies.push(new Body(x,y,vx,vy,mass));
+    }
+    document.getElementById('ui-phase').innerText='Phase I: Molecular Cloud';
+    showToast(`${n} particles initialised — Phase I: Molecular Cloud`);
+}
+
+function setPaused(p){
+    isPaused=p;
+    document.getElementById('icon-pause').style.display=p?'none':'';
+    document.getElementById('icon-play').style.display=p?'':'none';
+    document.getElementById('txt-pp').innerText=p?'RESUME':'PAUSE';
+}
+
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+function generateStars(){
+    stars=[];
+    const n=Math.floor(canvas.width*canvas.height/2800);
+    const pal=['#fff','#ddeeff','#ffeedd','#e0d8ff','#c8d4ff','#ffe8c0'];
+    for(let i=0;i<n;i++)
+        stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,
+            r:Math.random()<.06?Math.random()*1.4+.8:Math.random()*.7+.2,
+            a:Math.random()*.5+.1,col:pal[Math.floor(Math.random()*pal.length)]});
+}
+
+// ── Physics 60 Hz ──────────────────────────────────────────────────────────────
+function physicsTick(){
+    if(!isRunning||isPaused)return;
+    const dt=DT_BASE*timeDilation;
+    systemAge+=GY_FRAME*timeDilation;
+    frameCount++;
+    evolve();
+
+    // Gas drag: circularises disk orbits during accretion phase
+    if(phases.p3&&!phases.p5){
+        const drag=Math.pow(0.9998,dt);
+        for(let b of bodies)if(b.mass<3000&&!b.dead){b.vx*=drag;b.vy*=drag;}
+    }
+
+    const tree=buildTree();
+    for(let b of bodies){b.ax=0;b.ay=0;tree.accel(b);}
+
+    // Leapfrog + collision
+    const len=bodies.length;
+    for(let i=0;i<len;i++){
+        const a=bodies[i];if(a.dead)continue;
+        a.vx+=a.ax*dt;a.vy+=a.ay*dt;
+        a.x+=a.vx*dt; a.y+=a.vy*dt;
+        if(frameCount%4===0)a.recordPath();
+        for(let j=i+1;j<len;j++){
+            const b=bodies[j];if(b.dead)continue;
+            const dx=b.x-a.x,dy=b.y-a.y,md=a.radius+b.radius;
+            if(dx*dx+dy*dy<md*md){
+                const tm=a.mass+b.mass;
+                a.vx=(a.vx*a.mass+b.vx*b.mass)/tm;
+                a.vy=(a.vy*a.mass+b.vy*b.mass)/tm;
+                a.x=(a.x*a.mass+b.x*b.mass)/tm;
+                a.y=(a.y*a.mass+b.y*b.mass)/tm;
+                a.mass=tm;a.update();b.dead=true;
+                if(selectedBody===b){selectedBody=a;showToast(`Target merged → ${a.classType}`);}
+            }
+        }
+    }
+    bodies=bodies.filter(b=>!b.dead);
+
+    if(centreOnStar){
+        const s=heaviest();
+        if(s){tPanX=canvas.width/2-s.x*zoom;tPanY=canvas.height/2-s.y*zoom;}
+    }
+
+    // Update age/count in UI (bodies, age)
+    const pct=Math.min(systemAge/12*100,100);
+    document.getElementById('ui-prog').style.width=pct+'%';
+    document.getElementById('ui-age').innerText=systemAge.toFixed(3)+' Gy';
+    document.getElementById('ui-bodies').innerText=bodies.length.toLocaleString()+' bodies';
+}
+
+function heaviest(){let best=null,m=0;for(let b of bodies)if(b.mass>m){m=b.mass;best=b;}return best;}
+
+// ── Evolutionary Phases ────────────────────────────────────────────────────────
+function evolve(){
+    const el=document.getElementById('ui-phase');
+    // Phase II — protostellar core forms (~0.5 Gy into collapse)
+    // We seed it with mass 5500 (A-type). This is realistic: the core is already
+    // undergoing nuclear burning by the time the wider disk has settled.
+    if(systemAge>=0.5&&!phases.p2){
+        phases.p2=true;el.innerText='Phase II: Protostellar Collapse';
+        showToast('Jeans instability reached. Protostellar core igniting (A-type, mass 5500).');
+        bodies.push(new Body((Math.random()-.5)*100,(Math.random()-.5)*100,0,0,5500));
+    }
+    if(systemAge>=2.0&&!phases.p3){
+        phases.p3=true;el.innerText='Phase III: Protoplanetary Disk';
+        showToast('Protoplanetary disk forming. Gas drag circularising particle orbits.');
+    }
+    if(systemAge>=4.0&&!phases.p4){
+        phases.p4=true;el.innerText='Phase IV: T Tauri Stellar Winds';
+        showToast('T Tauri winds sweeping residual gas. Planetesimals condensing.');
+    }
+    if(systemAge>=5.5&&!phases.p5){
+        phases.p5=true;el.innerText='Phase V: Late Heavy Bombardment';
+        showToast('Late Heavy Bombardment! Cometary impactors entering the inner system.');
+    }
+    if(phases.p4){
+        // Stellar wind clears sub-threshold dust
+        for(let b of bodies)if(b.mass<7)b.dead=true;
+        if(Math.random()<0.003*timeDilation)injectImpactor();
+    }
+    if(systemAge>=12.0&&!phases.end){
+        phases.end=true;el.innerText='Main Sequence — System Mature';
+        showToast('System stabilised. Main-sequence stellar epoch reached (~4.6 Gy real time analogue).');
+    }
+}
+function injectImpactor(){
+    const th=Math.random()*Math.PI*2,r=7000;
+    const x=Math.cos(th)*r,y=Math.sin(th)*r;
+    const v=9+Math.random()*7;
+    bodies.push(new Body(x,y,-Math.cos(th)*v+(Math.random()-.5)*2,-Math.sin(th)*v+(Math.random()-.5)*2,25+Math.random()*100));
+}
+
+// ── Gravity Grid ───────────────────────────────────────────────────────────────
+function drawGrid(){
+    const C=30,R=22,m=500;
+    const wL=(-panX/zoom)-m,wT=(-panY/zoom)-m;
+    const wR=(canvas.width-panX)/zoom+m,wB=(canvas.height-panY)/zoom+m;
+    const cw=(wR-wL)/C,ch=(wB-wT)/R;
+    const pts=[];
+    for(let r=0;r<=R;r++){
+        pts[r]=[];
+        for(let c=0;c<=C;c++){
+            const wx=wL+c*cw,wy=wT+r*ch;
+            let ddx=0,ddy=0;
+            for(let b of bodies){
+                if(b.mass<100)continue;
+                const ex=wx-b.x,ey=wy-b.y;
+                const d=Math.sqrt(ex*ex+ey*ey+50000);
+                const s=Math.min(b.mass*.28/(d*.009+1),350);
+                ddx-=(ex/d)*s;ddy-=(ey/d)*s;
+            }
+            pts[r][c]={x:wx+ddx,y:wy+ddy};
+        }
+    }
+    ctx.lineWidth=0.6/zoom;
+    for(let r=0;r<=R;r++){
+        ctx.beginPath();
+        for(let c=0;c<=C;c++){const p=pts[r][c];c===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);}
+        ctx.strokeStyle='rgba(100,50,200,0.13)';ctx.stroke();
+    }
+    for(let c=0;c<=C;c++){
+        ctx.beginPath();
+        for(let r=0;r<=R;r++){const p=pts[r][c];r===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);}
+        ctx.strokeStyle='rgba(140,80,240,0.11)';ctx.stroke();
+    }
+    for(let b of bodies){
+        if(b.mass<500)continue;
+        const gr=b.radius*5,it=Math.min(b.mass/60000,1);
+        const g=ctx.createRadialGradient(b.x,b.y,b.radius*.5,b.x,b.y,gr);
+        g.addColorStop(0,`rgba(148,80,255,${.06*it})`);g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.y,gr,0,Math.PI*2);ctx.fill();
+    }
+}
+
+// ── Orbit Trails ───────────────────────────────────────────────────────────────
+function hexRgba(h,a){
+    const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+}
+function drawTrails(){
+    for(let b of bodies){
+        const n=b.path.length;if(n<2)continue;
+        for(let i=1;i<n;i++){
+            const t=i/n;
+            ctx.beginPath();
+            ctx.moveTo(b.path[i-1].x,b.path[i-1].y);
+            ctx.lineTo(b.path[i].x,  b.path[i].y);
+            ctx.strokeStyle=hexRgba(b.color,Math.pow(t,1.8)*.55);
+            ctx.lineWidth=Math.max(.35,(.7+Math.min(b.mass/10000,1)*2.5)/zoom);
+            ctx.stroke();
+        }
+    }
+}
+
+// ── Render Loop ────────────────────────────────────────────────────────────────
+function renderLoop(){
+    if(!isRunning)return;
+    panX+=(tPanX-panX)*.12;panY+=(tPanY-panY)*.12;zoom+=(tZoom-zoom)*.10;
+
+    const bg=ctx.createRadialGradient(canvas.width/2,canvas.height/2,0,canvas.width/2,canvas.height/2,canvas.width*.8);
+    bg.addColorStop(0,'#0a0414');bg.addColorStop(1,'#050209');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    for(let s of stars){
+        ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle=s.col;ctx.globalAlpha=s.a;ctx.fill();
+    }
+    ctx.globalAlpha=1;
+
+    ctx.save();
+    ctx.translate(panX,panY);ctx.scale(zoom,zoom);
+
+    if(showGrid)drawGrid();
+    if(showOrbits)drawTrails();
+
+    const now=Date.now();
+    ctx.shadowBlur=0;
+
+    for(let b of bodies){
+        let r=b.radius;
+        if(b.classType.includes('M-type')||b.classType==='Hypergiant')
+            r+=Math.sin(now/200+b.id)*(r*.055);
+        r=Math.max(r,.4/zoom);
+
+        if(b.mass>50&&(zoom>.04||b.mass>200)){
+            ctx.shadowBlur=r*(b.mass>1000?2.8:b.mass>100?2:1.4);
+            ctx.shadowColor=b.glowColor;
+        } else ctx.shadowBlur=0;
+
+        ctx.beginPath();ctx.arc(b.x,b.y,r,0,Math.PI*2);
+        if(b.mass>150){
+            const gr=ctx.createRadialGradient(b.x-r*.28,b.y-r*.28,0,b.x,b.y,r);
+            gr.addColorStop(0,b.glowColor);gr.addColorStop(.65,b.color);
+            gr.addColorStop(1,hexRgba(b.color,.65));ctx.fillStyle=gr;
+        } else ctx.fillStyle=b.color;
+        ctx.fill();
+
+        if(selectedBody===b){
+            ctx.shadowBlur=0;
+            ctx.beginPath();ctx.arc(b.x,b.y,r+9/zoom,0,Math.PI*2);
+            ctx.strokeStyle='#e879f9';ctx.lineWidth=1.5/zoom;
+            ctx.setLineDash([5/zoom,5/zoom]);ctx.stroke();ctx.setLineDash([]);
+        }
+    }
+    ctx.shadowBlur=0;
+    ctx.restore();
+
+    // Inspector runs every frame — works while paused
+    updateInspector();
+
+    requestAnimationFrame(renderLoop);
+}
+
+// ── Inspector (frame-rate updated so it works when paused) ─────────────────────
+function updateInspector(){
+    const panel=document.getElementById('inspector');
+    if(selectedBody&&!selectedBody.dead){
+        panel.style.display='flex';
+        document.getElementById('insp-name').innerText=selectedBody.classType+' #'+selectedBody.id;
+        document.getElementById('insp-dot').style.backgroundColor=selectedBody.color;
+        document.getElementById('insp-dot').style.boxShadow='0 0 10px '+selectedBody.color;
+        document.getElementById('insp-class').innerText=selectedBody.classType;
+        document.getElementById('insp-class').style.color=selectedBody.color;
+        document.getElementById('insp-mass').innerText=Math.round(selectedBody.mass).toLocaleString();
+        document.getElementById('insp-rad').innerText=selectedBody.radius.toFixed(1);
+        document.getElementById('insp-vel').innerText=Math.hypot(selectedBody.vx,selectedBody.vy).toFixed(3)+' u/s';
+        document.getElementById('insp-temp').innerText=selectedBody.temp;
+        document.getElementById('insp-lum').innerText=selectedBody.lum;
+    } else {
+        panel.style.display='none';
+        if(selectedBody?.dead)selectedBody=null;
+    }
+}
+
+function showToast(msg){
+    const el=document.createElement('div');
+    el.className='glass rounded-xl px-4 py-2.5 text-sm shadow-xl toast';
+    el.style.cssText='border-left:3px solid #a855f7;color:#ede9fe;font-family:Rajdhani,sans-serif;max-width:220px;';
+    el.innerText=msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),400);},4500);
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────────
+function s2w(cx,cy){return{x:(cx-panX)/zoom,y:(cy-panY)/zoom};}
+
+canvas.addEventListener('mousedown',e=>{
+    isDragging=true;dsx=e.clientX-tPanX;dsy=e.clientY-tPanY;
+    const wp=s2w(e.clientX,e.clientY);
+    let best=null,bd=Infinity;
+    for(let b of bodies){
+        const d=Math.hypot(wp.x-b.x,wp.y-b.y);
+        if(d<Math.max(b.radius,14/zoom)&&d<bd){bd=d;best=b;}
+    }
+    if(best)selectedBody=best;
+});
+canvas.addEventListener('mousemove',e=>{
+    if(!isDragging)return;
+    if(centreOnStar){centreOnStar=false;document.getElementById('btn-star').classList.remove('on');}
+    tPanX=e.clientX-dsx;tPanY=e.clientY-dsy;panX=tPanX;panY=tPanY;
+});
+window.addEventListener('mouseup',()=>{isDragging=false;});
+canvas.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const f=e.deltaY>0?.9:1.1,prev=tZoom;
+    tZoom=Math.max(.008,Math.min(tZoom*f,12));
+    tPanX=e.clientX-(e.clientX-tPanX)*(tZoom/prev);
+    tPanY=e.clientY-(e.clientY-tPanY)*(tZoom/prev);
+},{passive:false});
+
+// ── Buttons ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-pp').addEventListener('click',()=>{
+    setPaused(!isPaused);
+    if(isPaused) showToast('Paused. Click any body to inspect it.');
+});
+document.getElementById('time-sl').addEventListener('input',e=>{
+    timeDilation=parseFloat(e.target.value);
+    document.getElementById('ui-dil').innerText=timeDilation.toFixed(1)+'×';
+});
+document.getElementById('btn-desel').addEventListener('click',()=>{selectedBody=null;});
+document.getElementById('btn-grid').addEventListener('click',()=>{
+    showGrid=!showGrid;
+    document.getElementById('btn-grid').classList.toggle('on',showGrid);
+    showToast(showGrid?'Spacetime grid enabled.':'Spacetime grid hidden.');
+});
+document.getElementById('btn-orb').addEventListener('click',()=>{
+    showOrbits=!showOrbits;
+    document.getElementById('btn-orb').classList.toggle('on',showOrbits);
+    showToast(showOrbits?'Orbit trails enabled.':'Orbit trails hidden.');
+});
+document.getElementById('btn-star').addEventListener('click',()=>{
+    centreOnStar=!centreOnStar;
+    document.getElementById('btn-star').classList.toggle('on',centreOnStar);
+    showToast(centreOnStar?'Viewport locked to most massive body.':'Viewport unlocked.');
+});
+document.getElementById('btn-menu').addEventListener('click',()=>{
+    // Pause and return to menu — user picks a new particle count from there
+    setPaused(true);
+    showSplash();
+});
+
+// Legend collapse toggle
+document.getElementById('btn-legend').addEventListener('click',()=>{
+    legendOpen=!legendOpen;
+    document.getElementById('legend-body').style.display=legendOpen?'':'none';
+    document.getElementById('legend-chev').className='w-3.5 h-3.5 '+(legendOpen?'chevron-open':'chevron-closed');
+});
+</script>
+</body>
+</html>
