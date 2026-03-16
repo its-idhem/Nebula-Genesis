@@ -1,5 +1,6 @@
 # 🌌 Nebula Genesis — N-Body Gravity Simulator
 
+This was a big project that took me a while, you can see it **[here](https://its-idhem.github.io/Nebula-Genesis/)**
 An interactive, browser-based N-body gravity simulator that models the full lifecycle of a stellar system — from a primordial molecular cloud to planetary formation, stellar evolution, and eventual stellar death.
 
 ![Phase I: Giant Molecular Cloud](https://img.shields.io/badge/Phase%20I-Molecular%20Cloud-cc88ff?style=flat-square) ![Phase V: Late Heavy Bombardment](https://img.shields.io/badge/Phase%20V-Late%20Heavy%20Bombardment-ff8844?style=flat-square) ![Stars](https://img.shields.io/badge/Stars-9%20spectral%20types-ffe87c?style=flat-square) ![Remnants](https://img.shields.io/badge/Remnants-WD%20%7C%20NS%20%7C%20BH-a855f7?style=flat-square)
@@ -122,53 +123,12 @@ Gas Giant → Brown Dwarf → Ice Giant → Rocky Planet → Debris
 
 ---
 
-## 🏗️ Architecture
-
-No build step or server required. The only external dependencies are Tailwind CSS and Google Fonts, loaded from CDN.
-
-```
-solar_system_v7.html
-├── CSS / styles          — glass-morphism UI, animations, custom range inputs
-├── HTML structure        — canvas, inspector panel, toolbar, legend, search panel, splash screen
-└── JavaScript (~1200 lines)
-    ├── Constants          — G, softening, theta, timescales, body cap
-    ├── SpatialHash        — O(1) collision broadphase
-    ├── classify / classifyMS — mass → spectral type / planetary type
-    ├── Body class         — position, velocity, mass, stellar age, orbital elements, display methods
-    ├── QNode (Barnes-Hut) — quadtree gravity approximation
-    ├── physicsTick (60Hz) — integration loop, drag, sticking, wind, LHB, aging
-    ├── agestar            — red giant progression, death trigger
-    ├── stellarDeath       — remnant formation, ejecta
-    ├── evolve             — phase transitions, protostar accretion, disk formation
-    ├── checkTidal         — Roche limit disruption
-    ├── doCollisions       — merge / fragment / accrete dispatch
-    ├── accrete            — Chandrasekhar + TOV limit checks
-    ├── renderLoop (rAF)   — canvas 2D rendering, trails, explosions, grid, UI
-    └── Input / UI         — mouse, keyboard, search panel, inspector, toasts
-```
-
 ### Key Physics Notes
 - **Gas particles** are non-gravitational in Phase I (soft blobs). They transition to gravitational point masses *gradually* across 0.5–0.9 Gyr to prevent a collision cascade.
 - **Fragmentation** is disabled during Phase I/II — gas cloud collisions always merge.
 - **Tidal disruption** is only active from Phase III onward.
 - **pendingBodies[]** staging array prevents mutating the bodies array mid-iteration (which caused crashes in earlier versions).
 - Stellar lifetimes are compressed ~20× from real astrophysical values so deaths are observable in a normal session.
-
----
-
-## 🚀 Running Locally
-
-No build step required.
-
-```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
-# Open in browser directly:
-open solar_system_v7.html
-# Or serve with any static file server:
-npx serve .
-python3 -m http.server 8080
-```
 
 The simulation runs entirely client-side. An internet connection is only needed to load Tailwind CSS and the Rajdhani / Share Tech Mono fonts from CDN (or use the GitHub Pages hosted version).
 
@@ -208,7 +168,4 @@ The simulation runs entirely client-side. An internet connection is only needed 
 - **Canvas 2D API** — all rendering
 - [Tailwind CSS](https://tailwindcss.com/) via CDN — UI styling
 - [Rajdhani](https://fonts.google.com/specimen/Rajdhani) + [Share Tech Mono](https://fonts.google.com/specimen/Share+Tech+Mono) — typography
-
----
-
-*"We are a way for the cosmos to know itself."* — Carl Sagan
+- A bit of AI for the maths, and optimisations (extremely helpful)
