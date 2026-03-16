@@ -1,6 +1,6 @@
 # 🌌 Nebula Genesis — N-Body Gravity Simulator
 
-This was a big project that took me a while, you can see it **[here](https://its-idhem.github.io/Nebula-Genesis/)**
+This was a big project that took me a while, you can see it **[here](https://its-idhem.github.io/Nebula-Genesis/)**. 
 An interactive, browser-based N-body gravity simulator that models the full lifecycle of a stellar system — from a primordial molecular cloud to planetary formation, stellar evolution, and eventual stellar death.
 
 ![Phase I: Giant Molecular Cloud](https://img.shields.io/badge/Phase%20I-Molecular%20Cloud-cc88ff?style=flat-square) ![Phase V: Late Heavy Bombardment](https://img.shields.io/badge/Phase%20V-Late%20Heavy%20Bombardment-ff8844?style=flat-square) ![Stars](https://img.shields.io/badge/Stars-9%20spectral%20types-ffe87c?style=flat-square) ![Remnants](https://img.shields.io/badge/Remnants-WD%20%7C%20NS%20%7C%20BH-a855f7?style=flat-square)
