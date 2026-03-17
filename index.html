@@ -45,6 +45,8 @@ input[type=range]::-webkit-slider-runnable-track{
 .btn.on{background:rgba(168,85,247,.35);border-color:var(--purple-acc);color:#fff;box-shadow:0 0 12px rgba(168,85,247,.4);}
 .btn.danger{border-color:rgba(239,68,68,.5);color:#fca5a5;}
 .btn.danger:hover{background:rgba(220,38,38,.3);border-color:#ef4444;color:#fff;}
+#btn-search-open:hover{background:rgba(124,58,237,.5)!important;border-color:var(--purple-glow)!important;}
+#btn-search-open.active{background:rgba(168,85,247,.35)!important;border-color:var(--purple-acc)!important;box-shadow:0 0 10px rgba(168,85,247,.4);}
 .tglow{text-shadow:0 0 20px rgba(168,85,247,.9),0 0 40px rgba(168,85,247,.4);}
 .lc{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 #tr-col{position:fixed;top:1.25rem;right:1.25rem;display:flex;flex-direction:column;align-items:flex-end;gap:.65rem;z-index:20;pointer-events:none;}
@@ -53,6 +55,28 @@ input[type=range]::-webkit-slider-runnable-track{
 #splash{font-family:'Rajdhani',sans-serif;}
 .chevron-open{transform:rotate(0deg);transition:transform .2s;}
 .chevron-closed{transform:rotate(-90deg);transition:transform .2s;}
+#search-panel{
+  position:fixed;top:1.25rem;right:270px;z-index:30;width:260px;max-height:80vh;
+  display:none;flex-direction:column;overflow:hidden;
+  background:rgba(12,5,28,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(168,85,247,.28);border-radius:1rem;
+  box-shadow:0 20px 50px -10px rgba(0,0,0,.8),inset 0 1px 0 rgba(168,85,247,.1);
+}
+#search-panel.open{display:flex;}
+.sp-cat{cursor:pointer;padding:6px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--txt-mut);border-bottom:1px solid rgba(168,85,247,.1);
+  display:flex;align-items:center;justify-content:space-between;user-select:none;}
+.sp-cat:hover{background:rgba(109,40,217,.2);color:var(--txt-sec);}
+.sp-cat.active{color:var(--purple-lt);background:rgba(109,40,217,.25);}
+.sp-bodies{display:none;padding:4px 0;background:rgba(5,2,9,.5);}
+.sp-bodies.open{display:block;}
+.sp-body-row{cursor:pointer;padding:4px 16px;font-size:11px;font-family:'Share Tech Mono',monospace;
+  color:var(--txt-sec);display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;}
+.sp-body-row:hover{background:rgba(168,85,247,.15);color:#fff;}
+.sp-body-row .sp-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sp-empty{padding:4px 16px 8px;font-size:10px;color:var(--txt-mut);font-family:'Share Tech Mono',monospace;}
+@keyframes panelIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+#search-panel.open{animation:panelIn .2s ease forwards;}
 </style>
 </head>
 <body>
@@ -60,12 +84,20 @@ input[type=range]::-webkit-slider-runnable-track{
 
 <div id="tr-col">
   <div id="legend-panel" class="glass rounded-2xl overflow-hidden">
-    <button id="btn-legend" class="w-full flex items-center justify-between px-4 py-2.5 hit" style="cursor:pointer;">
-      <span class="text-xs font-bold uppercase tracking-widest" style="color:var(--txt-mut);">Object Classification</span>
-      <svg id="legend-chev" class="w-3.5 h-3.5 chevron-open" style="color:var(--purple-glow);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-      </svg>
-    </button>
+    <div class="flex items-center px-3 py-2" style="gap:6px;">
+      <button id="btn-search-open" class="hit flex-shrink-0 flex items-center justify-center rounded-lg" title="Find Object"
+        style="width:26px;height:26px;background:rgba(109,40,217,.25);border:1px solid rgba(168,85,247,.35);cursor:pointer;transition:all .2s;">
+        <svg style="width:12px;height:12px;color:var(--purple-lt);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+      <button id="btn-legend" class="flex-1 flex items-center justify-between py-0.5 hit" style="cursor:pointer;background:none;border:none;">
+        <span class="text-xs font-bold uppercase tracking-widest" style="color:var(--txt-mut);">Object Classification</span>
+        <svg id="legend-chev" class="w-3.5 h-3.5 chevron-open" style="color:var(--purple-glow);" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+    </div>
     <div id="legend-body" class="px-4 pb-3 flex flex-col gap-1 text-xs font-mono" style="color:var(--txt-sec);">
       <div style="color:var(--txt-mut);font-size:9px;letter-spacing:.1em;">— PRIMORDIAL —</div>
       <div class="flex items-center gap-2"><span class="lc" style="background:#cc88ff;box-shadow:0 0 5px #cc88ff;"></span>H&#8322;/He Gas Cloud</div>
@@ -94,6 +126,18 @@ input[type=range]::-webkit-slider-runnable-track{
     </div>
   </div>
   <div id="toast-container"></div>
+</div>
+
+<!-- Search Panel -->
+<div id="search-panel">
+  <div style="padding:10px 12px 8px;border-bottom:1px solid rgba(168,85,247,.2);display:flex;align-items:center;gap:8px;">
+    <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:var(--purple-glow);width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
+    </svg>
+    <span style="font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--txt-sec);text-transform:uppercase;">Find Object</span>
+    <button id="btn-search-close" style="margin-left:auto;color:var(--txt-mut);line-height:1;font-size:16px;cursor:pointer;background:none;border:none;padding:0 2px;">&times;</button>
+  </div>
+  <div id="search-list" style="overflow-y:auto;max-height:calc(80vh - 44px);"></div>
 </div>
 
 <div class="ui-layer flex flex-col justify-between p-5">
@@ -311,6 +355,7 @@ function classify(mass,isRemnant,remnantType,giantProg){
 }
 
 function classifyMS(mass){
+  // ── Stellar sequence (hydrogen fusion, mass ≥ ~0.08 M☉ ≈ 180 sim units) ──
   if(mass>=80000)return{type:'Hypergiant', color:'#1a8fff',glow:'#60b4ff',temp:'~50 000 K',lum:'10⁶ L☉',cat:'stellar'};
   if(mass>=40000)return{type:'Blue Giant', color:'#6ab4ff',glow:'#a0d0ff',temp:'~30 000 K',lum:'10⁵ L☉',cat:'stellar'};
   if(mass>=12000)return{type:'B-type Star',color:'#b0d8ff',glow:'#cce8ff',temp:'~20 000 K',lum:'10³ L☉',cat:'stellar'};
@@ -319,10 +364,14 @@ function classifyMS(mass){
   if(mass>=1200) return{type:'G-type / Sun',color:'#ffe87c',glow:'#fff5a0',temp:'~5 800 K',lum:'1 L☉',   cat:'stellar'};
   if(mass>=500)  return{type:'K-type Star',color:'#ffa040',glow:'#ffb870',temp:'~4 500 K', lum:'0.2 L☉', cat:'stellar'};
   if(mass>=180)  return{type:'M-type Star',color:'#ff4422',glow:'#ff7755',temp:'~3 000 K', lum:'0.04 L☉',cat:'stellar'};
-  if(mass>=320)  return{type:'Gas Giant',  color:'#d4b896',glow:'#e8d0a8',temp:'~160 K',   lum:'N/A',    cat:'planetary'};
-  if(mass>=95)   return{type:'Ice Giant',  color:'#4a7fa5',glow:'#6098b8',temp:'~60 K',    lum:'N/A',    cat:'planetary'};
+  // ── Sub-stellar / planetary (mass < stellar ignition threshold) ──
+  // Brown dwarf: 13–80 Jupiter masses ≈ 60–180 sim units — no sustained fusion
   if(mass>=60)   return{type:'Brown Dwarf',color:'#8b3d2a',glow:'#a05030',temp:'<2 500 K', lum:'<0.001 L☉',cat:'planetary'};
-  if(mass>=20)   return{type:'Rocky Planet',color:'#7a6850',glow:'#968268',temp:'N/A',     lum:'N/A',    cat:'planetary'};
+  // Gas giant: ~0.3–13 Jupiter masses ≈ 20–60 sim units (Jovian)
+  if(mass>=30)   return{type:'Gas Giant',  color:'#d4b896',glow:'#e8d0a8',temp:'~160 K',   lum:'N/A',    cat:'planetary'};
+  // Ice giant: ~0.05–0.3 Jupiter masses ≈ 8–20 sim units (Neptunian)
+  if(mass>=8)    return{type:'Ice Giant',  color:'#4a7fa5',glow:'#6098b8',temp:'~60 K',    lum:'N/A',    cat:'planetary'};
+  if(mass>=2)    return{type:'Rocky Planet',color:'#7a6850',glow:'#968268',temp:'N/A',     lum:'N/A',    cat:'planetary'};
                  return{type:'Debris',     color:'#4a4a5a',glow:'#5a5a6a',temp:'N/A',      lum:'N/A',    cat:'debris'};
 }
 
@@ -346,8 +395,17 @@ class Body{
     }else if(this.isProto){
       this.radius=Math.cbrt(this.mass)*2.5; // protostars appear larger, bloated
     }else{
-      // Red giants swell dramatically as they age
-      const swellFactor=1+this.giantProg*8;
+      // Red giants/supergiants: swell factor scales with original stellar mass
+      // Massive stars → supergiants (huge swell), small stars → modest expansion
+      let maxSwell=8; // default modest swell for M/K-type
+      const mc=this.msClass||this.classType;
+      if(mc==='Hypergiant'||mc==='Blue Giant') maxSwell=60;
+      else if(mc==='B-type Star')              maxSwell=30;
+      else if(mc==='A-type Star')              maxSwell=18;
+      else if(mc==='F-type Star')              maxSwell=14;
+      else if(mc==='G-type / Sun')             maxSwell=12;
+      else if(mc==='K-type Star')              maxSwell=10;
+      const swellFactor=1+this.giantProg*maxSwell;
       this.radius=Math.cbrt(this.mass)*1.9*swellFactor;
     }
     const c=classify(this.mass,this.isRemnant,this.remnantType,this.giantProg);
@@ -561,20 +619,6 @@ function physicsTick(){
   doCollisions();
   bodies=bodies.filter(b=>!b.dead);
 
-  // Camera
-  if(followTarget&&!followTarget.dead){
-    tPanX=canvas.width/2-followTarget.x*zoom;tPanY=canvas.height/2-followTarget.y*zoom;
-  }else if(centreOnStar){
-    const s=heaviest();if(s){tPanX=canvas.width/2-s.x*zoom;tPanY=canvas.height/2-s.y*zoom;}
-  }
-
-  // Keyboard navigation — apply continuously while keys held
-  const panSpeed=10/zoom;
-  if(keysDown.has('ArrowLeft')||keysDown.has('KeyA')){tPanX+=panSpeed;if(followTarget)followTarget=null;}
-  if(keysDown.has('ArrowRight')||keysDown.has('KeyD')){tPanX-=panSpeed;if(followTarget)followTarget=null;}
-  if(keysDown.has('ArrowUp')||keysDown.has('KeyW')){tPanY+=panSpeed;if(followTarget)followTarget=null;}
-  if(keysDown.has('ArrowDown')||keysDown.has('KeyS')){tPanY-=panSpeed;if(followTarget)followTarget=null;}
-
   // UI
   const pct=Math.min(systemAge/12*100,100);
   document.getElementById('ui-prog').style.width=pct+'%';
@@ -610,11 +654,18 @@ function agestar(star){
 function stellarDeath(star){
   const prevType=star.classType;
   let remnantType,ejectFrac,baseV,exColor,msg;
-  if(star.mass>=40000){remnantType='black_hole'; ejectFrac=0.30;baseV=30;exColor='#c084fc';msg='💥 CORE COLLAPSE → Black Hole!';}
-  else if(star.mass>=12000){remnantType='neutron';ejectFrac=0.70;baseV=25;exColor='#7dd3fc';msg='💥 SUPERNOVA → Neutron Star!';}
-  else{remnantType='white_dwarf';ejectFrac=0.45;baseV=8;exColor='#86efac';msg='🌌 Planetary Nebula → White Dwarf';}
+  // Mass thresholds for remnant type (scaled to sim units):
+  // > ~40 M☉ (40 000 sim) → black hole via pair-instability / direct collapse
+  // 8–40 M☉ (8 000–40 000 sim) → core-collapse supernova → neutron star
+  // < 8 M☉ (< 8 000 sim) → planetary nebula → white dwarf
+  if(star.mass>=40000){remnantType='black_hole'; ejectFrac=0.25;baseV=35;exColor='#c084fc';msg='💥 CORE COLLAPSE SUPERNOVA → Black Hole!';}
+  else if(star.mass>=8000){remnantType='neutron'; ejectFrac=0.75;baseV=30;exColor='#7dd3fc';msg='💥 CORE-COLLAPSE SUPERNOVA → Neutron Star!';}
+  else{remnantType='white_dwarf';ejectFrac=0.50;baseV=6;exColor='#86efac';msg='🌌 Planetary Nebula → White Dwarf';}
   star.isRemnant=true;star.remnantType=remnantType;star.giantProg=0;star.starAge=0;star.msClass=null;
-  const ejectMass=star.mass*ejectFrac;star.mass*=(1-ejectFrac);star.update();
+  const ejectMass=star.mass*ejectFrac;star.mass*=(1-ejectFrac);
+  if(remnantType==='white_dwarf') star.wdBirthMass=star.mass; // track for Chandrasekhar limit
+  if(remnantType==='neutron') star.tovBirthMass=star.mass;    // track for TOV limit
+  star.update();
   showToast(`${prevType}: ${msg} (${star.massDisplay()})`);
   const n=remnantType==='white_dwarf'?10:24;
   for(let i=0;i<n;i++){
@@ -790,6 +841,50 @@ function accrete(bigger,smaller){
   bigger.mass=tm;bigger.update();smaller.dead=true;
   if(selectedBody===smaller){selectedBody=bigger;followTarget=bigger;showToast(`Your target was accreted into ${bigger.classType} (${bigger.massDisplay()})`);}
   else if(selectedBody===bigger){showToast(`Your target accreted a body → ${bigger.massDisplay()}`);}
+  // ── Chandrasekhar limit: white dwarf accretes past ~1.4× birth mass → Type Ia supernova ──
+  // Real limit: ~1.4 M☉. Here we trigger when mass exceeds 1.4× the WD's birth mass,
+  // meaning a substantial fraction of its own mass has been added by accretion.
+  if(bigger.isRemnant&&bigger.remnantType==='white_dwarf'&&bigger.wdBirthMass){
+    if(bigger.mass>bigger.wdBirthMass*1.4){
+      typeIaSuperNova(bigger);
+      return;
+    }
+  }
+  // ── Tolman-Oppenheimer-Volkoff limit: neutron star grows past ~2× birth mass → black hole ──
+  // Real TOV limit: ~2-3 M☉. Trigger at 2× birth mass for playability.
+  if(bigger.isRemnant&&bigger.remnantType==='neutron'&&bigger.tovBirthMass){
+    if(bigger.mass>bigger.tovBirthMass*2.0){
+      neutronCollapse(bigger);
+      return;
+    }
+  }
+}
+
+// Type Ia supernova: white dwarf crosses Chandrasekhar limit — complete destruction, no remnant
+function typeIaSuperNova(wd){
+  const pos={x:wd.x,y:wd.y,vx:wd.vx,vy:wd.vy};
+  const totalMass=wd.mass;
+  wd.dead=true;
+  if(selectedBody===wd){selectedBody=null;followTarget=null;}
+  // Eject all mass as high-velocity debris (thermonuclear detonation — no remnant)
+  const n=32, baseV=45;
+  for(let i=0;i<n;i++){
+    const th=(i/n)*Math.PI*2+Math.random()*.3, v=baseV*(0.6+Math.random()*0.8);
+    bodies.push(new Body(pos.x+(Math.random()-.5)*20,pos.y+(Math.random()-.5)*20,
+      pos.vx+Math.cos(th)*v,pos.vy+Math.sin(th)*v,totalMass/n));
+  }
+  explosions.push({x:pos.x,y:pos.y,r:5,maxR:1200,alpha:1.0,color:'#fffde0',t:0,type:'supernova'});
+  showToast('💥 TYPE Ia SUPERNOVA — White Dwarf crossed Chandrasekhar limit! Total thermonuclear detonation.');
+}
+
+// Neutron star collapse: TOV limit exceeded → black hole (no explosion, implosion)
+function neutronCollapse(ns){
+  ns.remnantType='black_hole';
+  ns.wdAge=0;
+  ns.update();
+  explosions.push({x:ns.x,y:ns.y,r:ns.radius,maxR:ns.radius*6,alpha:0.7,color:'#a855f7',t:0,type:'collapse'});
+  showToast('⚫ Neutron Star exceeded TOV limit — collapsed to a Black Hole.');
+  if(selectedBody===ns) showToast('⚫ Your tracked Neutron Star collapsed to a Black Hole!');
 }
 
 function fragment(a,b){
@@ -808,11 +903,13 @@ function fragment(a,b){
   explosions.push({x:cx,y:cy,r:0,maxR:bigger.radius*8,alpha:0.7,color:'#ff8c00',t:0,type:'fragment'});
 }
 
-// ── Grid (cached every 4 frames) ─────────────────────────────
-let gridCache=null,gridFrame=-99;
+// ── Grid (cached, rebuilt whenever camera moves or every 4 physics frames) ──
+let gridCache=null,gridFrame=-99,gridPanX=null,gridPanY=null,gridZoom=null;
 function drawGrid(){
-  if(frameCount-gridFrame>=4||!gridCache){
-    gridFrame=frameCount;
+  const cameraChanged=(panX!==gridPanX||panY!==gridPanY||zoom!==gridZoom);
+  // Always rebuild if camera moved (works while paused too); otherwise throttle to every 4 frames
+  if(cameraChanged||frameCount-gridFrame>=4||!gridCache){
+    gridFrame=frameCount;gridPanX=panX;gridPanY=panY;gridZoom=zoom;
     const C=28,R=20,mg=500;
     const wL=(-panX/zoom)-mg,wT=(-panY/zoom)-mg;
     const wR=(canvas.width-panX)/zoom+mg,wB=(canvas.height-panY)/zoom+mg;
@@ -856,6 +953,21 @@ function drawTrails(){
 // ── Render ───────────────────────────────────────────────────
 function renderLoop(){
   if(!isRunning)return;
+
+  // ── Camera targeting (runs even while paused) ────────────────
+  if(followTarget&&!followTarget.dead){
+    tPanX=canvas.width/2-followTarget.x*zoom;tPanY=canvas.height/2-followTarget.y*zoom;
+  }else if(centreOnStar){
+    const s=heaviest();if(s){tPanX=canvas.width/2-s.x*zoom;tPanY=canvas.height/2-s.y*zoom;}
+  }
+
+  // Keyboard pan — active even while paused so user can explore
+  const panSpeed=10/zoom;
+  if(keysDown.has('ArrowLeft')||keysDown.has('KeyA')){tPanX+=panSpeed;if(followTarget)followTarget=null;}
+  if(keysDown.has('ArrowRight')||keysDown.has('KeyD')){tPanX-=panSpeed;if(followTarget)followTarget=null;}
+  if(keysDown.has('ArrowUp')||keysDown.has('KeyW')){tPanY+=panSpeed;if(followTarget)followTarget=null;}
+  if(keysDown.has('ArrowDown')||keysDown.has('KeyS')){tPanY-=panSpeed;if(followTarget)followTarget=null;}
+
   panX+=(tPanX-panX)*.12;panY+=(tPanY-panY)*.12;zoom+=(tZoom-zoom)*.10;
 
   ctx.fillStyle='#050209';ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -1117,6 +1229,117 @@ document.getElementById('btn-legend').addEventListener('click',()=>{
   document.getElementById('legend-body').style.display=legendOpen?'':'none';
   document.getElementById('legend-chev').className='w-3.5 h-3.5 '+(legendOpen?'chevron-open':'chevron-closed');
 });
+
+// ── Search Panel ─────────────────────────────────────────────
+// Category definitions: label, match function, dot colour
+const SEARCH_CATS=[
+  {label:'Protostar (forming)',    match:b=>b.isProto,                               color:'#ff8844'},
+  {label:'Hypergiant',             match:b=>!b.isRemnant&&!b.isProto&&b.classType==='Hypergiant',  color:'#1a8fff'},
+  {label:'Blue Giant',             match:b=>!b.isRemnant&&!b.isProto&&b.classType==='Blue Giant',  color:'#6ab4ff'},
+  {label:'B-type Star',            match:b=>!b.isRemnant&&!b.isProto&&b.classType==='B-type Star', color:'#b0d8ff'},
+  {label:'A-type Star',            match:b=>!b.isRemnant&&!b.isProto&&b.classType==='A-type Star', color:'#fff4ea'},
+  {label:'F-type Star',            match:b=>!b.isRemnant&&!b.isProto&&b.classType==='F-type Star', color:'#fff2c0'},
+  {label:'G-type / Sun-like',      match:b=>!b.isRemnant&&!b.isProto&&b.classType==='G-type / Sun',color:'#ffe87c'},
+  {label:'K-type Star',            match:b=>!b.isRemnant&&!b.isProto&&b.classType==='K-type Star', color:'#ffa040'},
+  {label:'M-type Star',            match:b=>!b.isRemnant&&!b.isProto&&b.classType==='M-type Star', color:'#ff4422'},
+  {label:'Red Giant / Aging Star', match:b=>!b.isRemnant&&!b.isProto&&(b.classType==='Red Giant'||b.classType==='Aging Star'), color:'#ff2200'},
+  {label:'White Dwarf',            match:b=>b.isRemnant&&b.remnantType==='white_dwarf', color:'#ffffff'},
+  {label:'Black Dwarf',            match:b=>b.isRemnant&&b.remnantType==='black_dwarf', color:'#374151'},
+  {label:'Neutron Star',           match:b=>b.isRemnant&&b.remnantType==='neutron',     color:'#88ccff'},
+  {label:'Black Hole',             match:b=>b.isRemnant&&b.remnantType==='black_hole',  color:'#a855f7'},
+  {label:'Brown Dwarf',            match:b=>!b.isRemnant&&!b.isProto&&b.classType==='Brown Dwarf', color:'#8b3d2a'},
+  {label:'Gas Giant',              match:b=>!b.isRemnant&&!b.isProto&&b.classType==='Gas Giant',   color:'#d4b896'},
+  {label:'Ice Giant',              match:b=>!b.isRemnant&&!b.isProto&&b.classType==='Ice Giant',   color:'#4a7fa5'},
+  {label:'Rocky Planet',           match:b=>!b.isRemnant&&!b.isProto&&b.classType==='Rocky Planet',color:'#7a6850'},
+  {label:'Debris / Asteroid',      match:b=>!b.isRemnant&&!b.isProto&&b.classType==='Debris',      color:'#4a4a5a'},
+];
+
+let searchPanelOpen=false;
+let searchOpenCat=null; // currently expanded category index
+
+function buildSearchList(){
+  const list=document.getElementById('search-list');
+  list.innerHTML='';
+  SEARCH_CATS.forEach((cat,idx)=>{
+    const matches=bodies.filter(b=>!b.dead&&cat.match(b));
+    // Sort by mass descending
+    matches.sort((a,b2)=>b2.mass-a.mass);
+    // Category header row
+    const hdr=document.createElement('div');
+    hdr.className='sp-cat'+(searchOpenCat===idx?' active':'');
+    hdr.innerHTML=`
+      <span>${cat.label}</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;color:var(--purple-lt);font-family:'Share Tech Mono',monospace;">${matches.length}</span>
+        <svg style="width:10px;height:10px;transition:transform .15s;transform:${searchOpenCat===idx?'rotate(0deg)':'rotate(-90deg)'}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </span>`;
+    hdr.addEventListener('click',()=>{
+      searchOpenCat = (searchOpenCat===idx)?null:idx;
+      buildSearchList();
+    });
+    list.appendChild(hdr);
+    // Body list (shown only when expanded)
+    if(searchOpenCat===idx){
+      const bodyList=document.createElement('div');
+      bodyList.className='sp-bodies open';
+      if(matches.length===0){
+        const empty=document.createElement('div');
+        empty.className='sp-empty';
+        empty.textContent='No objects of this type';
+        bodyList.appendChild(empty);
+      }else{
+        matches.forEach(b=>{
+          const row=document.createElement('div');
+          row.className='sp-body-row';
+          const massStr=b.massDisplay();
+          const isSelected=(b===selectedBody);
+          row.innerHTML=`
+            <span class="sp-dot" style="background:${b.color};box-shadow:0 0 4px ${b.glowColor};${isSelected?'outline:1px solid #fff;':''}"></span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;${isSelected?'color:#fff;font-weight:bold;':''}">#${b.id}</span>
+            <span style="color:var(--txt-mut);font-size:10px;flex-shrink:0;">${massStr}</span>`;
+          row.title=`${cat.label} #${b.id} — ${massStr}`;
+          row.addEventListener('click',()=>{
+            selectedBody=b;followTarget=b;
+            centreOnStar=false;
+            document.getElementById('btn-star').classList.remove('on');
+            closeSearchPanel();
+          });
+          bodyList.appendChild(row);
+        });
+      }
+      list.appendChild(bodyList);
+    }
+  });
+}
+
+function openSearchPanel(){
+  searchPanelOpen=true;
+  searchOpenCat=null;
+  buildSearchList();
+  document.getElementById('search-panel').classList.add('open');
+  document.getElementById('btn-search-open').classList.add('active');
+}
+function closeSearchPanel(){
+  searchPanelOpen=false;
+  document.getElementById('search-panel').classList.remove('open');
+  document.getElementById('btn-search-open').classList.remove('active');
+}
+
+document.getElementById('btn-search-open').addEventListener('click',e=>{
+  e.stopPropagation();
+  if(searchPanelOpen) closeSearchPanel();
+  else openSearchPanel();
+});
+document.getElementById('btn-search-close').addEventListener('click',e=>{
+  e.stopPropagation();
+  closeSearchPanel();
+});
+// Close search panel on canvas click
+canvas.addEventListener('mousedown',()=>{if(searchPanelOpen)closeSearchPanel();});
+// Rebuild list whenever panel is already open (keep it live)
+setInterval(()=>{ if(searchPanelOpen && isRunning) buildSearchList(); },1000);
 </script>
 </body>
 </html>
